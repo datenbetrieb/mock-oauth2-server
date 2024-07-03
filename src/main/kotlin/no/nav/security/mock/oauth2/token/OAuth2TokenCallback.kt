@@ -3,6 +3,7 @@ package no.nav.security.mock.oauth2.token
 import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.oauth2.sdk.GrantType
 import com.nimbusds.oauth2.sdk.TokenRequest
+import mu.KotlinLogging
 import no.nav.security.mock.oauth2.extensions.clientIdAsString
 import no.nav.security.mock.oauth2.extensions.grantType
 import no.nav.security.mock.oauth2.extensions.replaceValues
@@ -10,6 +11,8 @@ import no.nav.security.mock.oauth2.extensions.scopesWithoutOidcScopes
 import no.nav.security.mock.oauth2.extensions.tokenExchangeGrantOrNull
 import java.time.Duration
 import java.util.UUID
+
+private val log = KotlinLogging.logger {}
 
 interface OAuth2TokenCallback {
     fun issuerId(): String
@@ -90,6 +93,7 @@ data class RequestMappingTokenCallback(
 
     private fun List<RequestMapping>.getClaims(tokenRequest: TokenRequest): Map<String, Any> {
         val claims = firstOrNull { it.isMatch(tokenRequest) }?.claims ?: emptyMap()
+        log.debug("added claims: ${claims}")
         val templateParams = tokenRequest.toHTTPRequest().bodyAsFormParameters.mapValues { it.value.joinToString(separator = " ") }
 
         // in case client_id is not set as form param but as basic auth, we add it to the template params in two different formats for backwards compatibility
@@ -115,6 +119,7 @@ data class RequestMapping(
     val typeHeader: String = JOSEObjectType.JWT.type,
 ) {
     fun isMatch(tokenRequest: TokenRequest): Boolean {
+        log.debug("testing match for ${requestParam} with ${tokenRequest.toHTTPRequest().bodyAsFormParameters[requestParam]}")
         return tokenRequest.toHTTPRequest().bodyAsFormParameters[requestParam]?.any {
             match == "*" || match == it || match.toRegex().matchEntire(it) != null
         } ?: false
